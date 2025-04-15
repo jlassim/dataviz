@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multivariate Line Chart with Legend</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+
+    .axis path, .axis line {
+      fill: none;
+      stroke: #333;
+      shape-rendering: crispEdges;
+    }
+
+    .line {
+      fill: none;
+      stroke-width: 2px;
+    }
+
+    .legend {
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .legend:hover {
+      font-weight: bold;
+    }
+
+    .legend-circle {
+      r: 6;
+    }
+
+  </style>
+</head>
+<body>
+  <h2>Multivariate Line Chart from base2.csv</h2>
+  <svg width="1000" height="550"></svg>
+
+  <script>
+    const svg = d3.select("svg"),
+          margin = {top: 40, right: 200, bottom: 40, left: 50},
+          width = +svg.attr("width") - margin.left - margin.right,
+          height = +svg.attr("height") - margin.top - margin.bottom;
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    d3.csv("base2.csv").then(data => {
+      data.forEach(d => {
+        d.year = +d.year;
+        d.n = +d.n;
+      });
+
+      const names = Array.from(new Set(data.map(d => d.name)));
+      const color = d3.scaleOrdinal(d3.schemeCategory10).domain(names);
+
+      const x = d3.scaleLinear()
+                  .domain(d3.extent(data, d => d.year))
+                  .range([0, width]);
+
+      const y = d3.scaleLinear()
+                  .domain([0, d3.max(data, d => d.n)])
+                  .nice()
+                  .range([height, 0]);
+
+      const line = d3.line()
+                     .x(d => x(d.year))
+                     .y(d => y(d.n));
+
+      // Axes
+      g.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+
+      g.append("g").call(d3.axisLeft(y));
+
+      // Group data by name
+      const namesData = d3.groups(data, d => d.name);
+
+      // Draw lines
+      const lines = g.selectAll(".line")
+        .data(namesData)
+        .enter()
+        .append("path")
+        .attr("class", "line")
+        .attr("d", d => line(d[1]))
+        .attr("stroke", d => color(d[0]))
+        .attr("opacity", 1)
+        .each(function(d, i) {
+          const path = d3.select(this);
+          const totalLength = path.node().getTotalLength();
+
+          path
+            .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+            .attr("stroke-dashoffset", totalLength)
+            .transition()
+            .duration(2500)
+            .attr("stroke-dashoffset", 0);
+        })
+        .on("mouseover", function(e, d) {
+          d3.select(this)
+            .raise()
+            .transition()
+            .duration(100)
+            .attr("stroke-width", 6)
+            .attr("opacity", 0.55);
+          d3.select(`#legend-${d[0].replace(/\s+/g, '-')}`)
+            .style("font-weight", "bold");
+        })
+        .on("mouseout", function(e, d) {
+          d3.select(this)
+            .transition()
+            .duration(100)
+            .attr("stroke-width", 2)
+            .attr("opacity", 1);
+          d3.select(`#legend-${d[0].replace(/\s+/g, '-')}`)
+            .style("font-weight", "normal");
+        });
+
+      // Legend
+      const legend = svg.append("g")
+        .attr("transform", `translate(${width + margin.left + 20},${margin.top})`);
+
+      namesData.forEach((d, i) => {
+        const name = d[0];
+        const yPos = i * 25;
+
+        // Legend circle
+        legend.append("circle")
+          .attr("cx", 0)
+          .attr("cy", yPos)
+          .attr("r", 6)
+          .attr("fill", color(name));
+
+        // Legend text
+        legend.append("text")
+          .attr("x", 15)
+          .attr("y", yPos + 4)
+          .attr("id", `legend-${name.replace(/\s+/g, '-')}`)
+          .attr("class", "legend")
+          .text(name);
+      });
+    });
+  </script>
+</body>
+</html>

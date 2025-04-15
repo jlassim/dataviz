@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Graphique avec Ligne et Points - D3</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    .line {
+      fill: none;
+      stroke: #CC0000;
+      stroke-width: 2;
+    }
+
+    .circle {
+      fill: steelblue;
+    }
+
+    .axis-label {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .graph-title {
+      font-size: 20px;
+      font-weight: bold;
+      text-anchor: middle;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  // Données
+  var dataset1 = [
+    [1, 1], [12, 20], [24, 36],
+    [32, 50], [40, 70], [50, 100],
+    [55, 106], [65, 123], [73, 130],
+    [78, 134], [83, 136], [89, 138],
+    [100, 140]
+  ];
+
+  // Marges et dimensions
+  var margin = { top: 60, right: 30, bottom: 50, left: 60 },
+      width = 600 - margin.left - margin.right,
+      height = 400 - margin.top - margin.bottom;
+
+  // Création du SVG
+  var svg = d3.select("body")
+              .append("svg")
+              .attr("width", width + margin.left + margin.right)
+              .attr("height", height + margin.top + margin.bottom)
+              .append("g")
+              .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Échelles
+  var xScale = d3.scaleLinear()
+                 .domain([d3.min(dataset1, d => d[0]), d3.max(dataset1, d => d[0])])
+                 .range([0, width]);
+
+  var yScale = d3.scaleLinear()
+                 .domain([0, d3.max(dataset1, d => d[1])])
+                 .range([height, 0]);
+
+  // Titre du graphique
+  svg.append("text")
+     .attr("x", width / 2)
+     .attr("y", -20)
+     .attr("class", "graph-title")
+     .text("Line chart");
+
+  // Axe X
+  svg.append("g")
+     .attr("transform", `translate(0,${height})`)
+     .call(d3.axisBottom(xScale));
+
+  // Titre axe X
+  svg.append("text")
+     .attr("x", width / 2)
+     .attr("y", height + 40)
+     .attr("text-anchor", "middle")
+     .attr("class", "axis-label")
+     .text("Valeurs de X");
+
+  // Axe Y
+  svg.append("g")
+     .call(d3.axisLeft(yScale));
+
+  // Titre axe Y
+  svg.append("text")
+     .attr("transform", "rotate(-90)")
+     .attr("x", -height / 2)
+     .attr("y", -40)
+     .attr("text-anchor", "middle")
+     .attr("class", "axis-label")
+     .text("Valeurs de Y");
+
+  // Générateur de ligne
+  var lineGen = d3.line()
+                  .x(d => xScale(d[0]))
+                  .y(d => yScale(d[1]));
+
+  // Ligne
+  svg.append("path")
+     .datum(dataset1)
+     .attr("class", "line")
+     .attr("d", lineGen);
+
+  // Cercles aux points
+  svg.selectAll(".circle")
+     .data(dataset1)
+     .enter()
+     .append("circle")
+     .attr("class", "circle")
+     .attr("cx", d => xScale(d[0]))
+     .attr("cy", d => yScale(d[1]))
+     .attr("r", 2)
+     .transition()                     
+     .duration(1000)
+     .attr("r", 4)
+     .attr("fill", "orange");
+</script>
+
+</body>
+</html>
+
