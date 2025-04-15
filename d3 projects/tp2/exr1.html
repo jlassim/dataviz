@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bar Chart - D3</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      padding: 20px;
+    }
+
+    .title {
+      font-size: 26px;
+      font-weight: bold;
+      text-anchor: middle;
+      fill: #333;
+    }
+
+    .bar:hover {
+      opacity: 0.7;
+    }
+
+    .axis text {
+      font-size: 14px;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #777;
+    }
+
+    .label {
+      fill: #000;
+      font-size: 12px;
+      text-anchor: middle;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    var margin = {top: 70, right: 40, bottom: 60, left: 60},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var x = d3.scaleBand().range([0, width]).padding(0.1);
+    var y = d3.scaleLinear().range([height, 0]);
+
+    var svg = d3.select("body")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    d3.csv("amounts.csv").then(function (data) {
+      data.forEach(function(d) {
+        d.amounts = +d.amounts;
+      });
+
+      x.domain(data.map(d => d.name));
+      y.domain([0, d3.max(data, d => d.amounts)]);
+
+      // Title
+      svg.append("text")
+         .attr("x", width / 2)
+         .attr("y", -30)
+         .attr("class", "title")
+         .text("Bar Chart of Amounts");
+
+      // Bars
+      svg.selectAll(".bar")
+         .data(data)
+         .enter()
+         .append("rect")
+         .attr("class", "bar")
+         .attr("x", d => x(d.name))
+         .attr("width", x.bandwidth())
+         .attr("y", d => y(d.amounts))
+         .attr("height", d => height - y(d.amounts))
+         .attr("fill", d => d.amounts < 30 ? "#4da6ff" : "#003366");
+
+      // Labels on bars
+      svg.selectAll(".label")
+         .data(data)
+         .enter()
+         .append("text")
+         .attr("class", "label")
+         .attr("x", d => x(d.name) + x.bandwidth() / 2)
+         .attr("y", d => y(d.amounts) - 5)
+         .text(d => d.amounts);
+
+      // X Axis
+      svg.append("g")
+         .attr("class", "axis")
+         .attr("transform", "translate(0," + height + ")")
+         .call(d3.axisBottom(x))
+         .selectAll("text")
+         .attr("transform", "rotate(-40)")
+         .style("text-anchor", "end");
+
+      // Y Axis
+      svg.append("g")
+         .attr("class", "axis")
+         .call(d3.axisLeft(y));
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bar Chart avec D3</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: sans-serif; }
+    .bar { fill: steelblue; }
+    .bar:hover { fill: orange; }
+    .axis { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Mon premier graphique avec D3.js</h2>
+  <svg width="600" height="400"></svg>
+
+  <script>
+    const svg = d3.select("svg");
+    const margin = {top: 20, right: 20, bottom: 30, left: 40};
+    const width = +svg.attr("width") - margin.left - margin.right;
+    const height = +svg.attr("height") - margin.top - margin.bottom;
+
+    const chart = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    d3.csv("data.csv").then(data => {
+      data.forEach(d => d.value = +d.value);
+
+      const x = d3.scaleBand()
+          .domain(data.map(d => d.name))
+          .range([0, width])
+          .padding(0.1);
+
+      const y = d3.scaleLinear()
+          .domain([0, d3.max(data, d => d.value)])
+          .nice()
+          .range([height, 0]);
+
+      chart.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x));
+
+      chart.append("g")
+          .call(d3.axisLeft(y));
+
+      chart.selectAll(".bar")
+        .data(data)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", d => x(d.name))
+          .attr("y", d => y(d.value))
+          .attr("width", x.bandwidth())
+          .attr("height", d => height - y(d.value));
+    });
+  </script>
+</body>
+</html>
