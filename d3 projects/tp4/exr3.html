@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte COVID France</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            z-index: 10;
+            visibility: hidden;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="tooltip"></div>
+
+    <script>
+        var width = 800;
+        var height = 600;
+
+        // Projection géographique centrée sur la France
+        var projection = d3.geoConicConformal()
+            .center([2.454071, 46.279229])  // Coordonnées du centre de la France
+            .scale(2800);
+
+        var path = d3.geoPath().projection(projection);
+
+        // Définir la palette de couleurs
+        var color = d3.scaleQuantize().range(["#edf8e9", "#bae4b3", "#74c476", "#31a354", "#006d2c"]);
+
+        // Créer l'élément SVG
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Charger les données GeoJSON des départements français (format GeoJSON)
+        d3.json("departements-version-simplifiee.json").then(function(json) {
+            console.log("Données GeoJSON chargées avec succès!");
+
+            // Charger les données du COVID à partir du CSV
+            d3.csv("covid2.csv").then(function(data) {
+                console.log("Données CSV chargées avec succès!");
+
+                // Fusionner les données COVID avec les départements du GeoJSON
+                data.forEach(function(d) {
+                    var departement = json.features.find(function(f) {
+                        return f.properties.nom === d.departement; // Correspondance par nom du département
+                    });
+                    if (departement) {
+                        // Ajouter la valeur des hospitalisations dans les propriétés du département
+                        departement.properties.value = parseFloat(d.hosp);  // hospitalisations
+                    } else {
+                        console.log("Département non trouvé : " + d.departement);
+                    }
+                });
+
+                // Définir les limites de la couleur en fonction des données d'hospitalisations
+                color.domain([0, d3.max(data, function(d) { return parseFloat(d.hosp); })]);
+
+                // Ajouter les départements à la carte
+                svg.selectAll("path")
+                    .data(json.features)
+                    .join("path")
+                    .attr("d", path)
+                    .attr("fill", function(d) {
+                        var value = d.properties.value;
+                        return value ? color(value) : "#ccc"; // Si la valeur est présente, on colorie, sinon on met en gris
+                    })
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 0.5)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this).transition()
+                            .duration(200)
+                            .style("opacity", 0.7);
+
+                        // Afficher la tooltip avec les informations
+                        d3.select(".tooltip")
+                            .style("visibility", "visible")
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY + 10) + "px")
+                            .html("<strong>Département :</strong> " + d.properties.nom + "<br><strong>Hospitalisations :</strong> " + d.properties.value);
+                    })
+                    .on("mouseout", function(d) {
+                        d3.select(this).transition()
+                            .duration(200)
+                            .style("opacity", 1);
+
+                        // Masquer la tooltip
+                        d3.select(".tooltip")
+                            .style("visibility", "hidden");
+                    });
+            }).catch(function(error) {
+                console.error("Erreur lors du chargement du fichier CSV :", error);
+            });
+        }).catch(function(error) {
+            console.error("Erreur lors du chargement du fichier GeoJSON :", error);
+        });
+    </script>
+</body>
+</html>

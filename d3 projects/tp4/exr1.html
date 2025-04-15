@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: green;
+            color: black;
+            padding: 15px;
+            font-size: 18px;
+            z-index: 10;
+            visibility: hidden;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="tooltip"></div>
+
+    <script>
+        var width = 1000, height = 800; // Augmenter les dimensions de la carte
+
+        // Création du SVG
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Ajout d'un groupe pour plus de flexibilité
+        var g = svg.append("g");
+
+        // Définition de la projection
+        var projection = d3.geoAlbersUsa()
+            .translate([width / 2, height / 2])
+            .scale([800]);  // Augmenter l'échelle pour agrandir la carte
+
+        // Définition du générateur de chemin pour la projection
+        var path = d3.geoPath().projection(projection);
+
+        // Chargement des données géographiques des états américains
+        d3.json("us-states.json").then(function (jsondata) {
+            if (!jsondata) {
+                console.error("Erreur: Le fichier us-states.json ne peut pas être chargé.");
+                return;
+            }
+
+            // Création des chemins géographiques pour chaque état
+            g.selectAll("path")
+                .data(jsondata.features)
+                .join("path")
+                .attr("fill", "#ccc")
+                .attr("d", path);
+
+            // Définition de l'échelle de couleur
+            var color = d3.scaleQuantize()
+                .range(["#edf8e9", "#bae4b3", "#74c476", "#31a354", "#006d2c"]);
+
+            // Chargement des données de productivité des états
+            d3.csv("us-ag-productivity.csv").then(function (data) {
+                if (!data || data.length === 0) {
+                    console.error("Erreur: Le fichier us-ag-productivity.csv ne peut pas être chargé ou est vide.");
+                    return;
+                }
+
+                // Définition du domaine pour l'échelle de couleur
+                color.domain([
+                    d3.min(data, function (d) { return d.value; }),
+                    d3.max(data, function (d) { return d.value; })
+                ]);
+
+                // Fusion des données de productivité avec les données géographiques
+                for (var i = 0; i < data.length; i++) {
+                    var dataState = data[i].state;
+                    var dataValue = parseFloat(data[i].value);
+
+                    // Recherche de l'état dans le GeoJSON et insertion de la valeur de productivité
+                    for (var j = 0; j < jsondata.features.length; j++) {
+                        var jsonState = jsondata.features[j].properties.name;
+                        if (dataState == jsonState) {
+                            jsondata.features[j].properties.value = dataValue;
+                            break;
+                        }
+                    }
+                }
+
+                // Création des états colorés avec la productivité
+                g.selectAll("path")
+                    .data(jsondata.features)
+                    .join("path")
+                    .attr("fill", function(d) {
+                        // Retourne la couleur selon la valeur de productivité
+                        return d.properties.value ? color(d.properties.value) : "#ccc";
+                    })
+                    .attr("d", path)
+                    .on("mouseover", function(event, d) {
+                        // Animation au survol : modification de l'opacité et affichage de la tooltip
+                        d3.select(this).transition()
+                            .duration(100) // Augmenter la durée de l'animation de survol
+                            .style("opacity", 0.55)
+                            .style("stroke-width", 4) // Élargir la ligne lors du survol
+                            .style("stroke", "black");
+
+                        d3.select(".tooltip")
+                            .transition()
+                            .duration(100)  // Augmenter la durée de l'animation de la tooltip
+                            .style("visibility", "visible")
+                            .html("<strong>État:</strong> " + d.properties.name + "<br><strong>Productivité:</strong> " + d.properties.value)
+                            .style("left", event.pageX + "px")
+                            .style("top", event.pageY + "px");
+                    })
+                    .on("mouseout", function(d) {
+                        // Réinitialisation des styles à la sortie de la souris
+                        d3.select(this).transition()
+                            .duration(100)  // Durée de l'animation lors du retrait de la souris
+                            .style("opacity", 0.9)
+                            .style("stroke-width", 1) // Réduire la largeur de la ligne
+                            .style("stroke", "none");
+
+                        d3.select(".tooltip")
+                            .transition()
+                            .duration(100) // Durée de l'animation lors de la disparition de la tooltip
+                            .style("visibility", "hidden");
+                    });
+            }).catch(function(error) {
+                console.error("Erreur lors du chargement du fichier CSV : ", error);
+            });
+        }).catch(function(error) {
+            console.error("Erreur lors du chargement du fichier JSON : ", error);
+        });
+    </script>
+</body>
+</html>

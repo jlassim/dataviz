@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte de la Grippe en France 2014</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            z-index: 10;
+            visibility: hidden;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="tooltip"></div>
+
+    <script>
+        // Dimensions de la carte
+        var width = 800;
+        var height = 600;
+
+        // Projection géographique centrée sur la France
+        var projection = d3.geoConicConformal()
+            .center([2.454071, 46.279229])  // Coordonnées du centre de la France
+            .scale(2800);  // Ajuste la mise à l'échelle pour la France
+
+        var path = d3.geoPath().projection(projection);
+
+        // Définition de la palette de couleurs
+        var color = d3.scaleQuantize().range(["#edf8e9", "#bae4b3", "#74c476", "#31a354", "#006d2c"]);
+
+        // Créer l'élément SVG
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Charger les données GeoJSON des régions françaises
+        d3.json("regions.json").then(function(json) {
+            console.log("Données GeoJSON chargées avec succès!");
+
+            // Charger les données de la grippe à partir du CSV
+            d3.csv("GrippeFrance2014.csv").then(function(data) {
+                console.log("Données CSV chargées avec succès!");
+
+                // Fusionner les données de la grippe avec les données géographiques (GeoJSON)
+                data.forEach(function(d) {
+                    var region = json.features.find(function(f) {
+                        return f.properties.nom === d.region; // Correspondance par nom de région
+                    });
+                    if (region) {
+                        // Ici, on prend la somme de la grippe pour l'année entière (somme2014)
+                        region.properties.value = parseFloat(d.somme2014); 
+                    } else {
+                        console.log("Région non trouvée : " + d.region);
+                    }
+                });
+
+                // Définir les limites de la couleur en fonction des données de grippe
+                color.domain([0, d3.max(data, function(d) { return parseFloat(d.somme2014); })]);
+
+                // Ajouter les régions à la carte
+                svg.selectAll("path")
+                    .data(json.features)
+                    .join("path")
+                    .attr("d", path)
+                    .style("fill", function(d) {
+                        var value = d.properties.value;
+                        return value ? color(value) : "#ccc";  // Si aucune donnée, gris
+                    })
+                    .style("stroke", "#fff")
+                    .style("stroke-width", "1px")
+                    .on("mouseover", function(event, d) {
+                        // Afficher l'info-bulle lors du survol
+                        d3.select(this).transition().duration(50).style("opacity", 0.7);
+                        d3.select(".tooltip")
+                            .transition().duration(50)
+                            .style("visibility", "visible")
+                            .html("Région : " + d.properties.nom + "<br>Grippe 2014 : " + d.properties.value);
+                    })
+                    .on("mouseout", function(d) {
+                        // Réinitialiser l'info-bulle lors du départ de la souris
+                        d3.select(this).transition().duration(50).style("opacity", 1);
+                        d3.select(".tooltip")
+                            .transition().duration(50)
+                            .style("visibility", "hidden");
+                    });
+
+                // Debugging : Vérifier les données fusionnées
+                json.features.forEach(function(d) {
+                    console.log(d.properties.nom + ": " + d.properties.value);
+                });
+            }).catch(function(error) {
+                console.error("Erreur lors du chargement du fichier CSV :", error);
+            });
+        }).catch(function(error) {
+            console.error("Erreur lors du chargement du fichier JSON :", error);
+        });
+    </script>
+</body>
+</html>
